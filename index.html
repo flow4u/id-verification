@@ -89,6 +89,9 @@
     .btn-add:hover { background-color: var(--primary-hover); }
     .btn-verify { background-color: var(--secondary); }
     .btn-verify:hover { background-color: var(--secondary-hover); }
+    .btn-edit { background-color: #FBBC04; color: black; }
+    .btn-edit:hover { background-color: #F9AB00; }
+    .btn-small { padding: 6px 10px; font-size: 12px; width: auto; margin-top: 0; }
     .btn-danger { background-color: #d93025; margin-top: 15px;}
     .btn-danger:hover { background-color: #b31404; }
     
@@ -229,6 +232,7 @@
               <th>Email</th>
               <th>Doc Type</th>
               <th>Stored Hash (SHA-256)</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody id="dbBody">
@@ -299,8 +303,8 @@
     }
 
     // --- 3. Core Cryptography (Replaces Apps Script computeDigest) ---
-    async function computeHash(docId, date, gender, chars) {
-      const rawString = `${docId}|${date}|${gender}|${chars}`;
+    async function computeHash(email, docId, date, gender, chars) {
+      const rawString = `${email}|${docId}|${date}|${gender}|${chars}`;
       const msgUint8 = new TextEncoder().encode(rawString);
       const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
       const hashArray = Array.from(new Uint8Array(hashBuffer));
@@ -320,20 +324,21 @@
         finalDocType = document.getElementById('customDocType').value;
       }
 
+      const email = document.getElementById('email').value;
       const docId = document.getElementById('addDocId').value;
       const date = document.getElementById('addDate').value;
       const gender = document.getElementById('addGender').value;
       const chars = document.getElementById('addChars').value;
 
       try {
-        const hash = await computeHash(docId, date, gender, chars);
+        const hash = await computeHash(email, docId, date, gender, chars);
         const timeStamp = new Date().toISOString().split('T')[0];
 
         const newRecord = {
           timeStamp: timeStamp,
           lastName: document.getElementById('lastName').value,
           firstName: document.getElementById('firstName').value,
-          email: document.getElementById('email').value,
+          email: email,
           docType: finalDocType,
           hash: hash
         };
@@ -409,13 +414,14 @@
       btn.disabled = true;
       btn.innerText = 'Verifying...';
 
+      const email = currentlySelectedRecord.email;
       const docId = document.getElementById('verDocId').value;
       const date = document.getElementById('verDate').value;
       const gender = document.getElementById('verGender').value;
       const chars = document.getElementById('verChars').value;
 
       try {
-        const calculatedHash = await computeHash(docId, date, gender, chars);
+        const calculatedHash = await computeHash(email, docId, date, gender, chars);
         
         if (calculatedHash === currentlySelectedRecord.hash) {
           showStatus('verifyStatus', '✅ MATCH! The details provided are correct.', true);
@@ -437,12 +443,13 @@
       tbody.innerHTML = '';
 
       if (db.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No records found.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">No records found.</td></tr>';
         return;
       }
 
       db.forEach(record => {
         const tr = document.createElement('tr');
+        tr.id = `row-${record.id}`;
         tr.innerHTML = `
           <td>${record.id}</td>
           <td>${record.timeStamp}</td>
@@ -450,9 +457,52 @@
           <td>${record.email}</td>
           <td>${record.docType}</td>
           <td class="hash-cell">${record.hash}</td>
+          <td>
+            <button class="btn-edit btn-small" onclick="editRecord(${record.id})">Edit</button>
+          </td>
         `;
         tbody.appendChild(tr);
       });
+    }
+
+    function editRecord(id) {
+      const db = getDatabase();
+      const record = db.find(r => r.id === id);
+      if (!record) return;
+
+      const tr = document.getElementById(`row-${id}`);
+      tr.innerHTML = `
+        <td>${record.id}</td>
+        <td><input type="text" id="edit-date-${id}" value="${record.timeStamp}" style="width: 85px; padding: 4px;"></td>
+        <td>
+          <input type="text" id="edit-last-${id}" value="${record.lastName}" placeholder="Last" style="width: 70px; padding: 4px; margin-bottom: 4px;"><br>
+          <input type="text" id="edit-first-${id}" value="${record.firstName}" placeholder="First" style="width: 70px; padding: 4px;">
+        </td>
+        <td><input type="email" id="edit-email-${id}" value="${record.email}" style="width: 120px; padding: 4px;"></td>
+        <td><input type="text" id="edit-doc-${id}" value="${record.docType}" style="width: 90px; padding: 4px;"></td>
+        <td><textarea id="edit-hash-${id}" style="width: 100%; height: 55px; font-family: monospace; font-size: 11px; padding: 4px; box-sizing: border-box;">${record.hash}</textarea></td>
+        <td>
+          <button class="btn-add btn-small" style="margin-bottom: 4px;" onclick="saveRecord(${id})">Save</button>
+          <button class="btn-danger btn-small" style="margin-top: 0;" onclick="renderDatabase()">Cancel</button>
+        </td>
+      `;
+    }
+
+    function saveRecord(id) {
+      const db = getDatabase();
+      const index = db.findIndex(r => r.id === id);
+      if (index === -1) return;
+
+      db[index].timeStamp = document.getElementById(`edit-date-${id}`).value;
+      db[index].lastName = document.getElementById(`edit-last-${id}`).value;
+      db[index].firstName = document.getElementById(`edit-first-${id}`).value;
+      db[index].email = document.getElementById(`edit-email-${id}`).value;
+      db[index].docType = document.getElementById(`edit-doc-${id}`).value;
+      db[index].hash = document.getElementById(`edit-hash-${id}`).value;
+
+      localStorage.setItem('secureDocsDB', JSON.stringify(db));
+      renderDatabase();
+      loadVerificationDropdown();
     }
   </script>
 </body>
