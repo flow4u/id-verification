@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Secure Docs - Demo</title>
+  <style>
+    :root {
+      --primary: #0F9D58;
+      --primary-hover: #0B8043;
+      --secondary: #4285F4;
+      --secondary-hover: #3367D6;
+      --bg: #f8f9fa;
+      --text: #202124;
+      --border: #dadce0;
+    }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+      padding: 0; 
+      margin: 0;
+      background-color: var(--bg);
+      color: var(--text);
+    }
+    .header {
+      background: white;
+      padding: 15px 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .header h1 { margin: 0; font-size: 20px; color: #5f6368; }
+    
+    .container {
+      max-width: 800px;
+      margin: 30px auto;
+      padding: 0 20px;
+    }
+    .tabs {
+      display: flex;
+      margin-bottom: 20px;
+      border-bottom: 2px solid var(--border);
+    }
+    .tab {
+      padding: 10px 20px;
+      cursor: pointer;
+      font-weight: bold;
+      color: #5f6368;
+      border-bottom: 3px solid transparent;
+      margin-bottom: -2px;
+    }
+    .tab.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+    }
+    .panel {
+      display: none;
+      background: white;
+      padding: 25px;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .panel.active { display: block; }
+    
+    div.field-group { margin-bottom: 15px; }
+    label { display: block; font-weight: bold; font-size: 14px; margin-bottom: 6px; color: #3c4043; }
+    input, select { 
+      width: 100%; 
+      padding: 10px; 
+      box-sizing: border-box; 
+      border: 1px solid var(--border); 
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    input:focus, select:focus { outline: none; border-color: var(--primary); }
+    
+    button { 
+      padding: 12px 15px; 
+      color: white; 
+      border: none; 
+      cursor: pointer; 
+      width: 100%; 
+      font-size: 16px; 
+      font-weight: bold;
+      border-radius: 4px; 
+      transition: background 0.2s;
+    }
+    .btn-add { background-color: var(--primary); }
+    .btn-add:hover { background-color: var(--primary-hover); }
+    .btn-verify { background-color: var(--secondary); }
+    .btn-verify:hover { background-color: var(--secondary-hover); }
+    .btn-danger { background-color: #d93025; margin-top: 15px;}
+    .btn-danger:hover { background-color: #b31404; }
+    
+    .statusMessage { 
+      margin-top: 15px; 
+      font-weight: bold; 
+      text-align: center; 
+      padding: 10px; 
+      border-radius: 4px; 
+      display: none; 
+    }
+    .success-msg { background-color: #ceead6; color: #0d652d; border: 1px solid #0d652d; }
+    .error-msg { background-color: #fad2cf; color: #a50e0e; border: 1px solid #a50e0e; }
+    
+    #customDocTypeDiv { display: none; margin-top: 10px; padding-left: 10px; border-left: 3px solid var(--primary); }
+    .info-box { background-color: #f1f3f4; padding: 15px; border-radius: 6px; border-left: 4px solid var(--secondary); margin-bottom: 20px; font-size: 14px; line-height: 1.6; }
+    
+    .db-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 13px;}
+    .db-table th, .db-table td { border: 1px solid var(--border); padding: 8px; text-align: left; }
+    .db-table th { background-color: #f1f3f4; }
+    .hash-cell { font-family: monospace; font-size: 11px; word-break: break-all; color: #555;}
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>Secure Docs System</h1>
+    <span style="font-size: 12px; color: #888;">Local Demo Environment</span>
+  </div>
+
+  <div class="container">
+    <!-- Navigation -->
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('addPanel', this)">Add New Entry</div>
+      <div class="tab" onclick="switchTab('verifyPanel', this); loadVerificationDropdown();">Verify Entry</div>
+      <div class="tab" onclick="switchTab('dbPanel', this); renderDatabase();">View Database</div>
+    </div>
+
+    <!-- ADD PANEL -->
+    <div id="addPanel" class="panel active">
+      <h2 style="margin-top:0;">Add New Document Entry</h2>
+      <form id="addForm" onsubmit="processAddForm(event)">
+        <div class="field-group"><label>Last Name:</label> <input type="text" id="lastName" required></div>
+        <div class="field-group"><label>First Name:</label> <input type="text" id="firstName" required></div>
+        <div class="field-group"><label>Email:</label> <input type="email" id="email" required></div>
+        
+        <div class="field-group">
+          <label>Document Type:</label> 
+          <select id="docType" required onchange="toggleCustomDocType()">
+            <option value="Passport">Passport</option>
+            <option value="Driving License">Driving License</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        
+        <div id="customDocTypeDiv" class="field-group">
+          <label>Specify Document Type:</label> 
+          <input type="text" id="customDocType" placeholder="e.g. National ID Card">
+        </div>
+        
+        <hr style="border: 0; border-top: 1px solid #dadce0; margin: 25px 0;">
+        <p style="font-size: 13px; color: #5f6368; background: #e8f0fe; padding: 10px; border-radius: 4px;">
+          🔒 The fields below will be hashed using SHA-256 and will <strong>NOT</strong> be saved in plain text.
+        </p>
+        
+        <div class="field-group"><label>Document ID:</label> <input type="text" id="addDocId" required></div>
+        <div class="field-group">
+          <label>Date (YYYY-MM-DD):</label> 
+          <input type="text" id="addDate" required pattern="\d{4}-\d{2}-\d{2}" placeholder="2026-03-20" title="Format must be YYYY-MM-DD">
+        </div>
+        <div class="field-group">
+          <label>Gender:</label> 
+          <select id="addGender" required>
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label>Secret 4 Characters:</label> 
+          <input type="text" id="addChars" required minlength="4" maxlength="4" placeholder="e.g. A1B2">
+        </div>
+        
+        <button type="submit" id="addSubmitBtn" class="btn-add">Generate Hash & Save</button>
+        <div id="addStatus" class="statusMessage"></div>
+      </form>
+    </div>
+
+    <!-- VERIFY PANEL -->
+    <div id="verifyPanel" class="panel">
+      <h2 style="margin-top:0;">Verify Document Details</h2>
+      
+      <div class="field-group">
+        <label>Select a Record to Verify:</label>
+        <select id="recordSelector" onchange="loadSelectedRecord()"></select>
+      </div>
+
+      <div class="info-box" id="infoBox"><em>Please select a record from the dropdown above.</em></div>
+
+      <form id="verifyForm" onsubmit="processVerifyForm(event)">
+        <p style="font-size: 13px; color: #555;">Enter the secret details below to check against the saved hash:</p>
+        
+        <div class="field-group"><label>Document ID:</label> <input type="text" id="verDocId" required disabled></div>
+        <div class="field-group">
+          <label>Date (YYYY-MM-DD):</label> 
+          <input type="text" id="verDate" required pattern="\d{4}-\d{2}-\d{2}" placeholder="2026-03-20" disabled>
+        </div>
+        <div class="field-group">
+          <label>Gender:</label> 
+          <select id="verGender" required disabled>
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label>Secret 4 Characters:</label> 
+          <input type="text" id="verChars" required minlength="4" maxlength="4" disabled>
+        </div>
+        
+        <button type="submit" id="verifySubmitBtn" class="btn-verify" disabled>Verify Record</button>
+        <div id="verifyStatus" class="statusMessage"></div>
+      </form>
+    </div>
+
+    <!-- DATABASE PANEL (Simulation of Google Sheet) -->
+    <div id="dbPanel" class="panel">
+      <h2 style="margin-top:0;">Simulated Database (Local Storage)</h2>
+      <p style="font-size: 13px; color: #666;">This represents your Google Sheet. It is saved in your browser's memory for this demo.</p>
+      
+      <div style="overflow-x: auto;">
+        <table class="db-table" id="dbTable">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Date Entered</th>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Doc Type</th>
+              <th>Stored Hash (SHA-256)</th>
+            </tr>
+          </thead>
+          <tbody id="dbBody">
+            <!-- Data populated here -->
+          </tbody>
+        </table>
+      </div>
+      <button onclick="clearDatabase()" class="btn-danger">Clear All Data</button>
+    </div>
+  </div>
+
+  <script>
+    // --- 1. UI Navigation & Helpers ---
+    function switchTab(panelId, tabElement) {
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.getElementById(panelId).classList.add('active');
+      tabElement.classList.add('active');
+      
+      // Hide statuses on tab switch
+      document.getElementById('addStatus').style.display = 'none';
+      document.getElementById('verifyStatus').style.display = 'none';
+    }
+
+    function toggleCustomDocType() {
+      const select = document.getElementById('docType');
+      const customDiv = document.getElementById('customDocTypeDiv');
+      const customInput = document.getElementById('customDocType');
+      
+      if (select.value === 'Other') {
+        customDiv.style.display = 'block';
+        customInput.required = true;
+      } else {
+        customDiv.style.display = 'none';
+        customInput.required = false;
+        customInput.value = '';
+      }
+    }
+
+    function showStatus(elementId, message, isSuccess) {
+      const el = document.getElementById(elementId);
+      el.innerText = message;
+      el.className = 'statusMessage ' + (isSuccess ? 'success-msg' : 'error-msg');
+      el.style.display = 'block';
+      if(isSuccess && elementId === 'addStatus') {
+        setTimeout(() => el.style.display = 'none', 4000);
+      }
+    }
+
+    // --- 2. Database Simulation (Local Storage) ---
+    function getDatabase() {
+      return JSON.parse(localStorage.getItem('secureDocsDB')) || [];
+    }
+
+    function saveToDatabase(record) {
+      const db = getDatabase();
+      record.id = db.length + 1; // Simulate row number
+      db.push(record);
+      localStorage.setItem('secureDocsDB', JSON.stringify(db));
+    }
+
+    function clearDatabase() {
+      if(confirm("Are you sure you want to delete all saved records?")) {
+        localStorage.removeItem('secureDocsDB');
+        renderDatabase();
+        loadVerificationDropdown();
+      }
+    }
+
+    // --- 3. Core Cryptography (Replaces Apps Script computeDigest) ---
+    async function computeHash(docId, date, gender, chars) {
+      const rawString = `${docId}|${date}|${gender}|${chars}`;
+      const msgUint8 = new TextEncoder().encode(rawString);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+      return hashHex;
+    }
+
+    // --- 4. Add Form Logic ---
+    async function processAddForm(e) {
+      e.preventDefault();
+      const btn = document.getElementById('addSubmitBtn');
+      btn.disabled = true;
+      btn.innerText = 'Generating & Saving...';
+
+      let finalDocType = document.getElementById('docType').value;
+      if (finalDocType === 'Other') {
+        finalDocType = document.getElementById('customDocType').value;
+      }
+
+      const docId = document.getElementById('addDocId').value;
+      const date = document.getElementById('addDate').value;
+      const gender = document.getElementById('addGender').value;
+      const chars = document.getElementById('addChars').value;
+
+      try {
+        const hash = await computeHash(docId, date, gender, chars);
+        const timeStamp = new Date().toISOString().split('T')[0];
+
+        const newRecord = {
+          timeStamp: timeStamp,
+          lastName: document.getElementById('lastName').value,
+          firstName: document.getElementById('firstName').value,
+          email: document.getElementById('email').value,
+          docType: finalDocType,
+          hash: hash
+        };
+
+        saveToDatabase(newRecord);
+        document.getElementById('addForm').reset();
+        toggleCustomDocType();
+        showStatus('addStatus', 'Successfully added to spreadsheet!', true);
+      } catch (err) {
+        showStatus('addStatus', 'Error generating hash.', false);
+      } finally {
+        btn.disabled = false;
+        btn.innerText = 'Generate Hash & Save';
+      }
+    }
+
+    // --- 5. Verify Form Logic ---
+    let currentlySelectedRecord = null;
+
+    function loadVerificationDropdown() {
+      const db = getDatabase();
+      const selector = document.getElementById('recordSelector');
+      selector.innerHTML = '<option value="">-- Select a record --</option>';
+      
+      db.forEach(record => {
+        const option = document.createElement('option');
+        option.value = record.id;
+        option.textContent = `Row ${record.id}: ${record.lastName}, ${record.firstName} (${record.docType})`;
+        selector.appendChild(option);
+      });
+      
+      loadSelectedRecord(); // Reset UI
+    }
+
+    function loadSelectedRecord() {
+      const selectedId = document.getElementById('recordSelector').value;
+      const infoBox = document.getElementById('infoBox');
+      const inputs = ['verDocId', 'verDate', 'verGender', 'verChars'];
+      const btn = document.getElementById('verifySubmitBtn');
+      document.getElementById('verifyStatus').style.display = 'none';
+
+      if (!selectedId) {
+        infoBox.innerHTML = '<em>Please select a record from the dropdown above.</em>';
+        inputs.forEach(id => document.getElementById(id).disabled = true);
+        btn.disabled = true;
+        currentlySelectedRecord = null;
+        return;
+      }
+
+      const db = getDatabase();
+      currentlySelectedRecord = db.find(r => r.id == selectedId);
+
+      infoBox.innerHTML = `
+        <strong>Target Record Selected:</strong><br>
+        Name: ${currentlySelectedRecord.lastName}, ${currentlySelectedRecord.firstName}<br>
+        Email: ${currentlySelectedRecord.email}<br>
+        Document: ${currentlySelectedRecord.docType}
+      `;
+
+      inputs.forEach(id => {
+        document.getElementById(id).disabled = false;
+        document.getElementById(id).value = ''; // clear previous entries
+      });
+      document.getElementById('verGender').value = 'Male';
+      btn.disabled = false;
+    }
+
+    async function processVerifyForm(e) {
+      e.preventDefault();
+      if (!currentlySelectedRecord) return;
+
+      const btn = document.getElementById('verifySubmitBtn');
+      btn.disabled = true;
+      btn.innerText = 'Verifying...';
+
+      const docId = document.getElementById('verDocId').value;
+      const date = document.getElementById('verDate').value;
+      const gender = document.getElementById('verGender').value;
+      const chars = document.getElementById('verChars').value;
+
+      try {
+        const calculatedHash = await computeHash(docId, date, gender, chars);
+        
+        if (calculatedHash === currentlySelectedRecord.hash) {
+          showStatus('verifyStatus', '✅ MATCH! The details provided are correct.', true);
+        } else {
+          showStatus('verifyStatus', '❌ NO MATCH. The details do not match the stored hash.', false);
+        }
+      } catch (err) {
+         showStatus('verifyStatus', 'Error during verification.', false);
+      } finally {
+        btn.disabled = false;
+        btn.innerText = 'Verify Record';
+      }
+    }
+
+    // --- 6. View Database Logic ---
+    function renderDatabase() {
+      const db = getDatabase();
+      const tbody = document.getElementById('dbBody');
+      tbody.innerHTML = '';
+
+      if (db.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No records found.</td></tr>';
+        return;
+      }
+
+      db.forEach(record => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${record.id}</td>
+          <td>${record.timeStamp}</td>
+          <td>${record.lastName}, ${record.firstName}</td>
+          <td>${record.email}</td>
+          <td>${record.docType}</td>
+          <td class="hash-cell">${record.hash}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+  </script>
+</body>
+</html>
